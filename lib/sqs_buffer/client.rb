@@ -72,7 +72,7 @@ module SqsBuffer
     end
 
     def worker_thread_alive?
-      !@worker_thread.nil? && @worker.alive?
+      !@worker_thread.nil? && @worker_thread.alive?
     end
 
     def last_process_time_stale?
