@@ -1,5 +1,6 @@
 require "sqs_buffer/version"
+require "sqs_buffer/client"
 
 module SqsBuffer
-  # Your code goes here...
 end
+
