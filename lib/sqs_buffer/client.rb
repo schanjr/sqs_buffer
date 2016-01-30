@@ -51,16 +51,21 @@ module SqsBuffer
       @running.make_false
     end
 
-    def queue_full?
+    def buffer_full?
       @message_queue.length >= @max_queue_threshold.value
     end
 
-    def queue_empty?
+    def buffer_empty?
       @message_queue.empty?
     end
 
-    def queue_length
+    def buffer_length
       @message_queue.length
+    end
+
+    def buffer
+      # Return a copy of the array events to guard against potential mutation
+      Marshal.load( Marshal.dump(@message_queue) )
     end
 
     def shutting_down?
@@ -80,10 +85,7 @@ module SqsBuffer
     end
 
     def process_all_messages
-      # This will be a collection of SQS messages
-      # I am pretty sure this exposes the @message_queue to mutability
-      # Maybe I should deep dup this?
-      @process_block.value.call(@message_queue)
+      @process_block.value.call(buffer)
       delete_all_messages
       touch_process_time
     rescue StandardError => e
