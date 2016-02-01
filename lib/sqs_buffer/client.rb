@@ -103,7 +103,7 @@ module SqsBuffer
     private
 
     def need_to_process?
-      if !queue_empty? && (queue_full? || last_process_time_stale?)
+      if !buffer_empty? && (queue_full? || last_process_time_stale?)
         true
       else
         false
