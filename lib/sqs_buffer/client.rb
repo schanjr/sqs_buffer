@@ -90,7 +90,7 @@ module SqsBuffer
       delete_all_messages
       touch_process_time
     rescue StandardError => e
-      @logger.error "An exception(#{e.message}) occurred while process the message queue: #{@message_queue.join("\n")} | Backtrace: #{e.backtrace}"
+      @logger.error "An exception(#{e.message}) occurred while processing the message queue: #{@message_queue.join("\n")} | Backtrace: #{e.backtrace}"
     end
 
     def process_block(&block)
@@ -150,8 +150,12 @@ module SqsBuffer
 
     def delete_all_messages
       while @message_queue.length > 0 do
-        messages = @message_queue.shift(10)
-        @poller.delete_messages(messages)
+        begin
+          messages = @message_queue.shift(10)
+          @poller.delete_messages(messages)
+        rescue StandardError => e
+          @logger.error "An exception(#{e.message}) occurred while deleting these messages: #{messages.join("\n")} | Backtrace: #{e.backtrace}"
+        end
       end
     end
 
