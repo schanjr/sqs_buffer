@@ -85,6 +85,10 @@ module SqsBuffer
       @last_process_time.value < Time.now.to_i - @max_wait_time.value
     end
 
+    def time_since_last_process
+      Time.now.to_i - @last_process_time.value
+    end
+
     def process_all_messages
       @process_block.value.call(buffer)
       delete_all_messages
