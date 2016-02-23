@@ -12,7 +12,6 @@ module SqsBuffer
       @skip_delete            = opts.fetch(:skip_delete, true)
       @max_number_of_messages = opts.fetch(:max_number_of_messages, 10).to_i
       @logger                 = opts.fetch(:logger, Logger.new(STDOUT))
-      @process_block        = Concurrent::MutexAtomicReference.new
       @before_request_block = Concurrent::MutexAtomicReference.new
       @process_block        = Concurrent::MutexAtomicReference.new
       @message_queue        = Concurrent::Array.new
@@ -121,17 +120,21 @@ module SqsBuffer
 
     def configure_before_request_block
       @poller.before_request do |stats|
-        if @running.false?
-          @logger.info "Shutting down. Processing all messages first..."
-          process_all_messages
-          @logger.info "All messages have been processed. Throwing :stop_polling"
-          throw :stop_polling
-        end
-        if @before_request_block.value
-          @before_request_block.value.call(stats)
-        end
-        if need_to_process?
-          process_all_messages
+        begin
+          if @running.false?
+            @logger.info "Shutting down. Processing all messages first..."
+            process_all_messages
+            @logger.info "All messages have been processed. Throwing :stop_polling"
+            throw :stop_polling
+          end
+          if @before_request_block.value
+            @before_request_block.value.call(stats)
+          end
+          if need_to_process?
+            process_all_messages
+          end
+        rescue => e
+          @logger.error "Exception: #{e.message} in before_request block. | Backtrace: #{e.backtrace}"
         end
       end # End Poller loop
     end
@@ -140,6 +143,8 @@ module SqsBuffer
       messages.each do |msg|
         store_message(msg)
       end
+    rescue => e
+      @logger.error "Exception: #{e.message} while storing messages: #{messages} | Backtrace: #{e.backtrace}"
     end
 
     def store_message(msg)
@@ -158,7 +163,7 @@ module SqsBuffer
           messages = @message_queue.shift(10)
           @poller.delete_messages(messages)
         rescue StandardError => e
-          @logger.error "An exception(#{e.message}) occurred while deleting these messages: #{messages.join("\n")} | Backtrace: #{e.backtrace}"
+          @logger.error "An exception(#{e.message}) occurred while deleting these messages: #{messages} | Backtrace: #{e.backtrace}"
         end
       end
     end
