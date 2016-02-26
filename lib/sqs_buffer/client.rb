@@ -31,12 +31,16 @@ module SqsBuffer
       @running.make_true
 
       @worker_thread = Thread.new do
-        opts = {
-          skip_delete: @skip_delete,
-          max_number_of_messages: @max_number_of_messages
-        }
-        @poller.poll(opts) do |messages|
-          store_messages(messages)
+        begin
+          opts = {
+            skip_delete: @skip_delete,
+            max_number_of_messages: @max_number_of_messages
+          }
+          @poller.poll(opts) do |messages|
+            store_messages(messages)
+          end
+        rescue => e
+          @logger.error "A Fatal exception(#{e.message}) occurred in worker thread | Backtrace: #{e.backtrace}"
         end
       end # End worker thread
 
