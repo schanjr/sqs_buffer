@@ -26,9 +26,10 @@ more than 10 at at time.}
   spec.add_dependency "aws-sdk", "~> 2.2"
   spec.add_dependency "concurrent-ruby", "~> 1.0"
 
-  spec.add_development_dependency "bundler"
-  spec.add_development_dependency "rake"
-  spec.add_development_dependency "rspec"
-  spec.add_development_dependency "pry"
+  spec.add_development_dependency 'bundler'
+  spec.add_development_dependency 'rake'
+  spec.add_development_dependency 'rspec'
+  spec.add_development_dependency 'dotenv'
+  spec.add_development_dependency 'pry'
 end
 

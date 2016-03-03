@@ -6,17 +6,17 @@ module SqsBuffer
   class Client
     def initialize(opts)
       @queue_url = opts.fetch(:queue_url) { |k| missing_key!(k) }
-      client = opts.fetch(:client) { |k| missing_key!(k) }
+      client     = opts.fetch(:client) { |k| missing_key!(k) }
 
       @poller = Aws::SQS::QueuePoller.new(@queue_url, client: client)
       @skip_delete            = opts.fetch(:skip_delete, true)
       @max_number_of_messages = opts.fetch(:max_number_of_messages, 10).to_i
       @logger                 = opts.fetch(:logger, Logger.new(STDOUT))
-      @before_request_block = Concurrent::MutexAtomicReference.new
-      @process_block        = Concurrent::MutexAtomicReference.new
-      @message_queue        = Concurrent::Array.new
-      @last_process_time    = Concurrent::AtomicFixnum.new(Time.now.to_i)
-      @running              = Concurrent::AtomicBoolean.new(false)
+      @before_request_block   = Concurrent::MutexAtomicReference.new
+      @process_block          = Concurrent::MutexAtomicReference.new
+      @message_queue          = Concurrent::Array.new
+      @last_process_time      = Concurrent::AtomicFixnum.new(Time.now.to_i)
+      @running                = Concurrent::AtomicBoolean.new(false)
 
       @max_wait_time = Concurrent::AtomicFixnum.new(
         opts.fetch(:max_wait_time, 300).to_i
@@ -32,15 +32,20 @@ module SqsBuffer
 
       @worker_thread = Thread.new do
         begin
+          sleep_seconds ||= 1
           opts = {
             skip_delete: @skip_delete,
             max_number_of_messages: @max_number_of_messages
           }
           @poller.poll(opts) do |messages|
             store_messages(messages)
+            sleep_seconds = 1
           end
         rescue => e
-          @logger.error "A Fatal exception(#{e.message}) occurred in worker thread | Backtrace: #{e.backtrace}"
+          sleep_seconds = sleep_seconds * 2
+          @logger.error "An unhandled exception(#{e.message}) occurred in worker thread. Sleeping #{sleep_seconds} seconds before retry. | Backtrace: #{e.backtrace}"
+          sleep([sleep_seconds, 30].min)
+          retry
         end
       end # End worker thread
 
@@ -93,7 +98,11 @@ module SqsBuffer
     end
 
     def process_all_messages
-      @process_block.value.call(buffer)
+      if @process_block.value
+        @process_block.value.call(buffer)
+      else
+        @logger.info "No process block was given. Discarding all messages."
+      end
       delete_all_messages
       touch_process_time
     rescue StandardError => e
@@ -137,7 +146,7 @@ module SqsBuffer
           if need_to_process?
             process_all_messages
           end
-        rescue => e
+        rescue StandardError => e
           @logger.error "Exception: #{e.message} in before_request block. | Backtrace: #{e.backtrace}"
         end
       end # End Poller loop
@@ -147,14 +156,12 @@ module SqsBuffer
       messages.each do |msg|
         store_message(msg)
       end
-    rescue => e
+    rescue StandardError => e
       @logger.error "Exception: #{e.message} while storing messages: #{messages} | Backtrace: #{e.backtrace}"
     end
 
     def store_message(msg)
       @message_queue << msg
-    rescue StandardError => e
-      @logger.error "Exception: #{e.message} while storing message: #{msg} | Backtrace: #{e.backtrace}"
     end
 
     def touch_process_time
