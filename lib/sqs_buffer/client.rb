@@ -99,7 +99,7 @@ module SqsBuffer
 
     def process_all_messages
       if @process_block.value
-        @process_block.value.call(buffer)
+        call_process_block_safely
       else
         @logger.info "No process block was given. Discarding all messages."
       end
@@ -118,6 +118,12 @@ module SqsBuffer
     end
 
     private
+
+    def call_process_block_safely
+      @process_block.value.call(buffer)
+    rescue
+      @logger.error "An exception(#{e.message}) occurred while processing the message queue | Backtrace: #{e.backtrace}"
+    end
 
     def need_to_process?
       if !buffer_empty? && (buffer_full? || last_process_time_stale?)
