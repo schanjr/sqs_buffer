@@ -121,7 +121,7 @@ module SqsBuffer
 
     def call_process_block_safely
       @process_block.value.call(buffer)
-    rescue
+    rescue StandardError => e
       @logger.error "An exception(#{e.message}) occurred while processing the message queue | Backtrace: #{e.backtrace}"
     end
 
