@@ -41,8 +41,31 @@ describe SqsBuffer::Client do
 
   end
 
+  context '#buffer()' do
+    before do
+      @buffer = SqsBuffer::Client.new(
+        queue_url: "test.notread",
+        client: @aws_client,
+      )
+    end
+
+    it 'works with anonymous classes in the buffer' do
+      buffer_queue << Class.new
+      expect { @buffer.buffer }.to_not raise_error
+    end
+
+    it 'returns a copy of the buffer' do
+      expect(@buffer.buffer.object_id).to_not eq(buffer_queue.object_id)
+    end
+
+  end
+
   def buffer_poller
     @buffer.instance_variable_get(:@poller)
+  end
+
+  def buffer_queue
+    @buffer.instance_variable_get(:@message_queue)
   end
 
 end

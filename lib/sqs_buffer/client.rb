@@ -74,7 +74,10 @@ module SqsBuffer
 
     def buffer
       # Return a copy of the array events to guard against potential mutation
-      Marshal.load( Marshal.dump(@message_queue) )
+      # This fails on jruby 9000 for some reason....
+      # Marshal.load( Marshal.dump(@message_queue) )
+      # Should we dup all items? look at benchmark :(
+      @message_queue.dup
     end
 
     def shutting_down?
