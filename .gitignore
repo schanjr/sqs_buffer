@@ -10,3 +10,4 @@
 
 # Ignore application configuration
 .env
+/.idea/

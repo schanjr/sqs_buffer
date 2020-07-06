@@ -5,3 +5,7 @@ Dotenv.load
 
 require 'pry'
 require 'sqs_buffer'
+
+ENV['region'] = 'us-west-2'
+ENV['accessKeyId'] = 'accessKeyId'
+ENV['secretAccessKey'] = 'secretAccessKey'
